@@ -54,7 +54,7 @@ Stations and their charts (defined in the `STATIONS` array in
 tercile_map_viewer_portfolio.html   The viewer (map + station data + chart loader)
 timeseries_plots/<year>-<month>/    One folder per forecast month (1995-01 onward),
                                      containing every station's PNG chart
-README_portfolio.md                 This file
+README_portfolio_seasonal.md        This file
 ```
 
 `tercile_map_viewer_portfolio.html` resolves each station's images as
