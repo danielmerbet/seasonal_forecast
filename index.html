@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEREIDA — Seasonal Forecast Portfolio Viewer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+          background:#F5F4F0;color:#2C2C2A;font-size:13px}
+header{background:#0B3D57;color:#fff;padding:0.7rem 1.25rem;
+       display:flex;align-items:center;gap:1rem;flex-wrap:wrap;flex-shrink:0}
+header h1{font-size:15px;font-weight:600;letter-spacing:0.01em}
+header p{font-size:12px;opacity:0.72}
+header .spacer{flex:1}
+.aboutBtn{font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.4);
+          background:rgba(255,255,255,0.08);color:#fff;cursor:pointer;white-space:nowrap}
+.aboutBtn:hover{background:rgba(255,255,255,0.18)}
+
+.controls{background:#fff;border-bottom:1px solid #D9D8D4;
+          padding:0.5rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;flex-shrink:0}
+.controls label{font-size:11px;font-weight:500;color:#888780;
+                text-transform:uppercase;letter-spacing:0.05em;margin-right:0.25rem}
+.controls select{font-size:13px;font-weight:500;background:#F5F4F0;color:#2C2C2A;
+                 border:0.5px solid #D9D8D4;border-radius:5px;padding:5px 8px;
+                 outline:none;cursor:pointer}
+.controls select:focus{border-color:#0B3D57}
+.latestBtn{font-size:12px;padding:5px 12px;border-radius:5px;border:0.5px solid #0B3D57;
+           background:#0B3D57;color:#fff;cursor:pointer;white-space:nowrap}
+
+.legend{background:#fff;border-bottom:1px solid #D9D8D4;padding:0.4rem 1rem;
+        font-size:11px;color:#2C2C2A;display:flex;flex-wrap:wrap;gap:1.1rem;align-items:center;flex-shrink:0}
+.legend-title{font-weight:600;font-size:11px;color:#888780;text-transform:uppercase;
+              letter-spacing:0.05em;white-space:nowrap}
+.legend-item{display:flex;align-items:center;gap:0.35rem;white-space:nowrap}
+.leg-swatch{display:inline-block;width:14px;height:14px;border-radius:2px;flex-shrink:0}
+.leg-line{display:inline-block;width:20px;height:2px;flex-shrink:0}
+.leg-dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.map-legend{display:flex;gap:1rem;margin-left:auto;border-left:1px solid #D9D8D4;padding-left:1rem}
+.map-legend-item{display:flex;align-items:center;gap:0.4rem;font-size:11px}
+.ml-dot{width:12px;height:12px;border-radius:50%;border:2px solid rgba(0,0,0,0.3);flex-shrink:0}
+
+.layout{display:flex;height:calc(100vh - 40px - 42px - 36px);overflow:hidden}
+
+#map-panel{width:40%;flex-shrink:0;border-right:1px solid #D9D8D4;position:relative}
+#map{height:100%;width:100%}
+
+#plot-panel{flex:1;overflow-y:auto;background:#F5F4F0}
+.plot-header{padding:0.6rem 1rem;background:#fff;border-bottom:0.5px solid #D9D8D4;
+             display:flex;align-items:center;gap:0.75rem;position:sticky;top:0;z-index:10}
+.plot-header h2{font-size:13px;font-weight:600;color:#2C2C2A}
+.plot-header .basin-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;
+                         text-transform:uppercase;letter-spacing:0.05em}
+.basin-ter{background:#E3F0FA;color:#0B3D57}
+.basin-tordera{background:#E3F0FA;color:#0B3D57}
+.basin-reservoir{background:#FFF3E0;color:#E65100}
+
+.plot-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+            height:100%;color:#888780;gap:0.75rem;padding:2rem;text-align:center}
+.plot-empty svg{opacity:0.25}
+.plot-empty p{font-size:13px}
+
+.plot-grid{display:grid;grid-template-columns:1fr;gap:0.6rem;padding:0.75rem}
+.img-card{background:#fff;border-radius:8px;border:0.5px solid #D9D8D4;overflow:hidden}
+.card-title{font-size:11px;font-weight:600;color:#2C2C2A;
+            padding:0.35rem 0.75rem;border-bottom:0.5px solid #F0EFE9;background:#F8F7F3}
+.img-wrap{position:relative;background:#f0f0ed}
+.img-wrap img{width:100%;height:auto;display:block}
+.img-wrap .placeholder{padding:1.5rem;text-align:center;color:#888780;
+                        font-size:12px;font-style:italic}
+
+#statusBar{font-size:11px;color:#888780;margin-left:auto}
+
+/* About modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(20,20,18,0.55);z-index:1000;
+         align-items:flex-start;justify-content:center;padding:4vh 1rem;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:760px;width:100%;padding:1.75rem 2rem 2rem;
+       box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.modal h2{font-size:19px;color:#0B3D57;margin-bottom:0.25rem}
+.modal .sub{font-size:12.5px;color:#888780;margin-bottom:1.25rem}
+.modal .closeBtn{float:right;font-size:20px;line-height:1;background:none;border:none;
+                  color:#888780;cursor:pointer;padding:0.2rem}
+.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin:1rem 0 1.5rem}
+.chain-step{background:#F8F7F3;border:1px solid #E7E5DE;border-radius:8px;padding:0.6rem 0.55rem;
+            font-size:11px;line-height:1.4}
+.chain-step .k{display:block;font-size:9.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+               color:#0B3D57;margin-bottom:0.25rem}
+.chain-arrow{display:none}
+@media(min-width:600px){.chain-arrow{display:block;color:#C7C4BB;align-self:center;text-align:center}}
+.modal h3{font-size:13px;color:#2C2C2A;margin:1.1rem 0 0.4rem}
+.modal p, .modal li{font-size:12.5px;line-height:1.6;color:#3C3C3A}
+.modal ul{padding-left:1.1rem;margin-bottom:0.5rem}
+.varTable{width:100%;border-collapse:collapse;font-size:12px;margin:0.5rem 0 1rem}
+.varTable th,.varTable td{text-align:left;padding:0.3rem 0.5rem;border-bottom:1px solid #F0EFE9}
+.varTable th{color:#888780;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em}
+.skillBox{background:#F8F7F3;border:1px solid #E7E5DE;border-radius:8px;padding:0.75rem 1rem;margin-top:0.5rem}
+.skillBox code{background:#EEEBE2;padding:1px 5px;border-radius:4px;font-size:11.5px}
+.modal a{color:#0B3D57}
+
+/* Leaflet popup style */
+.leaflet-popup-content b{color:#0B3D57}
+.station-popup{font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NEREIDA — Seasonal Forecast Portfolio Viewer</h1>
+  <p>Click a station on the map to see its seasonal forecast</p>
+  <div class="spacer"></div>
+  <button class="aboutBtn" onclick="openAbout()">About this pipeline</button>
+</header>
+
+<div class="controls">
+  <div>
+    <label for="selYear">Year</label>
+    <select id="selYear"></select>
+  </div>
+  <div>
+    <label for="selMonth">Month</label>
+    <select id="selMonth">
+      <option value="01">January</option><option value="02">February</option>
+      <option value="03">March</option><option value="04">April</option>
+      <option value="05">May</option><option value="06">June</option>
+      <option value="07">July</option><option value="08">August</option>
+      <option value="09">September</option><option value="10">October</option>
+      <option value="11">November</option><option value="12">December</option>
+    </select>
+  </div>
+  <button class="latestBtn" onclick="goToLatest()">Latest forecast</button>
+  <span id="statusBar"></span>
+</div>
+
+<div class="legend">
+  <span class="legend-title">Climatology (background)</span>
+  <span class="legend-item"><span class="leg-swatch" style="background:rgba(27,111,168,0.35)"></span>Above normal (&gt;P66)</span>
+  <span class="legend-item"><span class="leg-swatch" style="background:rgba(154,163,168,0.3)"></span>Normal (P33–P66)</span>
+  <span class="legend-item"><span class="leg-swatch" style="background:rgba(225,137,44,0.25)"></span>Below normal (&lt;P33)</span>
+  <span class="legend-item"><span class="leg-line" style="background:#888;border-top:2px dashed #555"></span>P33 / P66 threshold</span>
+  <span class="legend-item legend-group" style="border-left:1px solid #D9D8D4;padding-left:1rem">
+    <span class="legend-title">Forecast ensemble (51 members)</span>
+  </span>
+  <span class="legend-item"><span class="leg-swatch" style="background:rgba(11,61,87,0.16);border:1px solid rgba(11,61,87,0.3)"></span>10–90% of members</span>
+  <span class="legend-item"><span class="leg-swatch" style="background:rgba(11,61,87,0.34);border:1px solid rgba(11,61,87,0.5)"></span>33–66% of members</span>
+  <span class="legend-item"><span class="leg-line" style="background:#0B3D57;height:2.5px"></span>Ensemble median</span>
+  <span class="legend-item"><span class="leg-line" style="background:#D81B60;height:2.5px"></span>Observed</span>
+  <span class="legend-item" style="border-left:1px solid #D9D8D4;padding-left:1rem">
+    <span class="leg-dot" style="background:#2E7D32"></span>&nbsp;Good skill (NSE&gt;0 &amp; CRPSS≥0.1)
+  </span>
+  <span class="legend-item"><span class="leg-dot" style="background:#F9A825"></span>&nbsp;Marginal skill</span>
+  <span class="legend-item"><span class="leg-dot" style="background:#C62828"></span>&nbsp;No skill (≈ climatology)</span>
+  <span class="map-legend">
+    <span class="map-legend-item"><span class="ml-dot" style="background:#0B3D57"></span>River gauge</span>
+    <span class="map-legend-item"><span class="ml-dot" style="background:#E65100"></span>Reservoir</span>
+  </span>
+</div>
+
+<div class="layout">
+  <div id="map-panel">
+    <div id="map"></div>
+  </div>
+  <div id="plot-panel">
+    <div class="plot-empty" id="emptyMsg">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5">
+        <circle cx="12" cy="10" r="4"/><path d="M12 2C8 2 4 5.5 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.5-4-8-8-8z"/>
+      </svg>
+      <p>Click a station on the map to see its seasonal forecast</p>
+    </div>
+    <div id="plotContent" style="display:none">
+      <div class="plot-header" id="plotHeader">
+        <h2 id="stationName"></h2>
+        <span class="basin-tag" id="basinTag"></span>
+      </div>
+      <div class="plot-grid" id="plotGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- About the pipeline modal -->
+<div class="overlay" id="aboutOverlay" onclick="if(event.target===this)closeAbout()">
+  <div class="modal">
+    <button class="closeBtn" onclick="closeAbout()">&times;</button>
+    <h2>How this forecast is made</h2>
+    <p class="sub">NEREIDA — an integrated hydrological–limnological seasonal forecasting framework for the Ter system (Sau &amp; Susqueda reservoirs), Catalonia</p>
+
+    <p>Weather forecasts reach out to about 10 days; climate projections describe decades. This
+    framework fills the gap in between — <b>1 to 7 months ahead</b> — which is exactly the
+    horizon on which reservoir operators actually plan: how much water will arrive, how low
+    storage will go, and what condition that water will be in when it gets there.</p>
+
+    <h3>The forecast chain</h3>
+    <div class="chain">
+      <div class="chain-step"><span class="k">1 · Forcing</span>SEAS5.1 seasonal ensemble — 51 members from the Copernicus Climate Data Store, re-downloaded every month.</div>
+      <div class="chain-step"><span class="k">2 · Correction</span>Bias adjustment &amp; downscaling — every member corrected against the ERA5 reanalysis record.</div>
+      <div class="chain-step"><span class="k">3 · Hydrology</span>Rainfall–runoff over the Ter/Tordera sub-basins (GR4J) → inflows and system storage.</div>
+      <div class="chain-step"><span class="k">4 · Lake model</span>GLM 3.1.1 + AED2 — 1-D thermal structure and mixing at Sau and Susqueda, forced by those inflows.</div>
+      <div class="chain-step"><span class="k">5 · Product</span>Published monthly: tercile probabilities and verified skill per lead month, pushed to this viewer.</div>
+    </div>
+
+    <h3>What's forecast</h3>
+    <table class="varTable">
+      <tr><th>Family</th><th>Variables</th></tr>
+      <tr><td>Water quantity</td><td>System storage (Sau + Susqueda combined volume); inflows at six gauges across the Ter and Tordera</td></tr>
+      <tr><td>Water quality</td><td>Outlet gate temperature at seven gates across both reservoirs; river temperature at six reaches; water residence time (AED2 age tracer per gate); saline intrusion risk at 52 coastal wells</td></tr>
+    </table>
+    <p style="font-size:11.5px;color:#888780">This viewer currently covers the seasonal water-quantity and gate-temperature variables. In development: nutrients, dissolved oxygen and chlorophyll a.</p>
+
+    <h3>Reading a chart</h3>
+    <p>Each panel spans the 7-month forecast horizon (t+1 … t+7), and overlays two different
+    things — don't read them as the same shading:</p>
+    <ul>
+      <li><b>Background bands (orange/grey/blue)</b> are climatology, not forecast: the
+      observed below/normal/above-normal ranges for that calendar month, from the 1995–2025
+      historical record. The dashed lines are the P33/P66 thresholds that define "normal" —
+      they shift month to month, so the bands aren't flat.</li>
+      <li><b>Navy ribbons</b> are the actual forecast: the 51-member SEAS5.1 ensemble's spread
+      at each lead, shown as a 10–90% envelope (light) and a 33–66% envelope (darker) around
+      the ensemble median (solid navy line). They are <i>not</i> individual member dots — with
+      51 members plotted for 380 months, envelopes stay legible where a member-by-member swarm
+      wouldn't.</li>
+    </ul>
+    <p>The forecast has skill for a given lead when its navy ribbon sits clearly inside one
+    climatology band rather than spanning all three. The bottom bars quantify that directly:
+    what share of the ensemble falls below, within, or above the climatology-normal range —
+    the operational probability of a below-, normal-, or above-normal outcome.</p>
+
+    <h3>Verified skill</h3>
+    <p>Every site is verified against a 31-year hindcast (1995–2025), averaged across all
+    twelve initialisation months, using CRPSS (continuous ranked probability skill score,
+    vs. climatology) and NSE (Nash–Sutcliffe efficiency).</p>
+    <div class="skillBox">
+      Published skill criterion: <code>NSE &gt; 0 &amp; CRPSS ≥ 0.1</code><br>
+      Sites that fail it are shown as low- or no-skill rather than hidden. In practice: system
+      storage is genuinely predictable (CRPSS 0.86 at t+1, still 0.14 at t+7 — a reservoir
+      integrates its own history). Inflow skill is positive only at t+1; beyond that,
+      climatology is as good as the forecast. Gate temperature reproduces the right seasonal
+      shape but does not yet beat climatology (CRPSS below zero).
+    </div>
+
+    <h3>About NEREIDA</h3>
+    <p>Built by Daniel Mercado-Bettín and Rafael Marcé at the Centre d'Estudis Avançats de
+    Blanes (CEAB–CSIC). Applied here to Sau and Susqueda, the tandem reservoirs on the River
+    Ter that supply drinking water to the Barcelona metropolitan area — a system pushed to
+    record lows during the 2021–2024 Catalan drought. Both reservoirs are managed by the
+    Agència Catalana de l'Aigua (ACA), part of the NEREIDA project, grant RDI001/24/000044.
+    Source code: <a href="https://github.com/NEREIDACA/main" target="_blank" rel="noopener">github.com/NEREIDACA/main</a>.</p>
+  </div>
+</div>
+
+<script>
+// ── Year selector ─────────────────────────────────────────────────────────────
+const selYear  = document.getElementById("selYear");
+const selMonth = document.getElementById("selMonth");
+for (let y = new Date().getFullYear(); y >= 1995; y--) {
+  const o = document.createElement("option");
+  o.value = y; o.textContent = y;
+  selYear.appendChild(o);
+}
+function getLatestForecast() {
+  const now = new Date();
+  let y = now.getFullYear();
+  let m = now.getMonth() + 1;
+  if (now.getDate() < 15) { m--; if (m === 0) { m = 12; y--; } }
+  return { year: String(y), month: String(m).padStart(2, "0") };
+}
+const latest = getLatestForecast();
+selYear.value  = latest.year;
+selMonth.value = latest.month;
+
+// The calendar-latest month is often a real forecast whose charts haven't
+// been generated into this viewer's archive yet (the batch script runs
+// after the forecast itself). Probe backward month by month for one that
+// actually has a chart before landing on it, so the page doesn't open on
+// an all-placeholder month.
+function checkMonthAvailable(yr, mo) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload  = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = "timeseries_plots/" + yr + "-" + mo + "/V_ter_all.png";
+  });
+}
+async function findLatestAvailableMonth(startYear, startMonth) {
+  let y = parseInt(startYear, 10), m = parseInt(startMonth, 10);
+  for (let i = 0; i < 24; i++) {
+    const mo = String(m).padStart(2, "0");
+    if (await checkMonthAvailable(y, mo)) return { year: String(y), month: mo };
+    m--; if (m === 0) { m = 12; y--; }
+  }
+  return { year: startYear, month: startMonth };
+}
+
+async function goToLatest() {
+  const l = await findLatestAvailableMonth(...Object.values(getLatestForecast()));
+  selYear.value  = l.year;
+  selMonth.value = l.month;
+  if (currentStation) loadImages();
+}
+
+// Correct the initial default the same way, once availability is known.
+findLatestAvailableMonth(latest.year, latest.month).then(l => {
+  if (l.year !== selYear.value || l.month !== selMonth.value) {
+    selYear.value = l.year; selMonth.value = l.month;
+    if (currentStation) loadImages();
+  }
+});
+
+function openAbout()  { document.getElementById("aboutOverlay").classList.add("open"); }
+function closeAbout() { document.getElementById("aboutOverlay").classList.remove("open"); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeAbout(); });
+
+// ── Station definitions ───────────────────────────────────────────────────────
+const STATIONS = [
+  // ── Ter basin ──
+  {
+    id: "ter_ripoll",
+    name: "Ter at Ripoll",
+    basin: "Ter", basinClass: "basin-ter",
+    coords: [42.199, 2.191],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_ter_ripoll.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_ter_ripoll.png", label: "River temperature (°C)" }
+    ]
+  },
+  {
+    id: "ter_sau",
+    name: "Ter at Roda de Ter (Sau inflow)",
+    basin: "Ter", basinClass: "basin-ter",
+    coords: [41.980, 2.308],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_ter_sau.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_ter_sau.png", label: "River temperature (°C)" }
+    ]
+  },
+  {
+    id: "ter_gola",
+    name: "Gola del Ter (river mouth)",
+    basin: "Ter", basinClass: "basin-ter",
+    coords: [42.042, 3.127],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_ter_gola.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_ter_gola.png", label: "River temperature (°C)" }
+    ]
+  },
+  // ── Reservoirs ──
+  {
+    id: "sau",
+    name: "Sau reservoir",
+    basin: "Reservoir", basinClass: "basin-reservoir",
+    coords: [41.979, 2.405],
+    color: "#E65100",
+    plots: [
+      { file: "V_ter_all.png",            label: "Sau + Susqueda system storage (hm³)" },
+      { file: "reservoir_Tgate1_Sau.png", label: "Gate 1 outlet temperature — 384.5 m a.s.l. (°C)" },
+      { file: "reservoir_Tgate2_Sau.png", label: "Gate 2 outlet temperature — 399.0 m a.s.l. (°C)" },
+      { file: "reservoir_Tgate3_Sau.png", label: "Gate 3 outlet temperature — 413.5 m a.s.l. (°C)" }
+    ]
+  },
+  {
+    id: "susqueda",
+    name: "Susqueda reservoir",
+    basin: "Reservoir", basinClass: "basin-reservoir",
+    coords: [41.974, 2.487],
+    color: "#E65100",
+    plots: [
+      { file: "reservoir_Tgate1_Susqueda.png", label: "Gate 1 outlet temperature — 335.0 m a.s.l. (°C)" },
+      { file: "reservoir_Tgate2_Susqueda.png", label: "Gate 2 outlet temperature — 319.0 m a.s.l. (°C)" },
+      { file: "reservoir_Tgate3_Susqueda.png", label: "Gate 3 outlet temperature — 303.0 m a.s.l. (°C)" },
+      { file: "reservoir_Tgate4_Susqueda.png", label: "Gate 4 outlet temperature — 287.0 m a.s.l. (°C)" }
+    ]
+  },
+  // ── Tordera basin ──
+  {
+    id: "tordera_santceloni",
+    name: "Tordera at Sant Celoni",
+    basin: "Tordera", basinClass: "basin-tordera",
+    coords: [41.692, 2.509],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_tordera_santceloni.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_tordera_santceloni.png", label: "River temperature (°C)" }
+    ]
+  },
+  {
+    id: "tordera_fogars",
+    name: "Tordera at Fogars de la Selva",
+    basin: "Tordera", basinClass: "basin-tordera",
+    coords: [41.721, 2.705],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_tordera_fogars.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_tordera_fogars.png", label: "River temperature (°C)" }
+    ]
+  },
+  {
+    id: "tordera_coast",
+    name: "Tordera, coastal reach",
+    basin: "Tordera", basinClass: "basin-tordera",
+    coords: [41.648, 2.776],
+    color: "#0B3D57",
+    plots: [
+      { file: "Q_tordera_coast.png",       label: "Discharge (m³/s)" },
+      { file: "rivtemp_tordera_coast.png", label: "River temperature (°C)" }
+    ]
+  }
+];
+
+// ── Leaflet map ───────────────────────────────────────────────────────────────
+const map = L.map("map").setView([41.95, 2.55], 9);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors",
+  maxZoom: 18
+}).addTo(map);
+
+let activeMarker = null;
+
+STATIONS.forEach(st => {
+  const marker = L.circleMarker(st.coords, {
+    radius: 9,
+    fillColor: st.color,
+    color: "#fff",
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.9
+  }).addTo(map);
+
+  marker.bindTooltip(st.name, { direction: "top", offset: [0, -8] });
+
+  marker.on("click", () => {
+    if (activeMarker && activeMarker !== marker) {
+      activeMarker.setStyle({ weight: 2, radius: 9 });
+    }
+    marker.setStyle({ weight: 3, radius: 11 });
+    activeMarker = marker;
+    selectStation(st);
+  });
+
+  st._marker = marker;
+});
+
+// ── Station selection ─────────────────────────────────────────────────────────
+let currentStation = null;
+
+function selectStation(st) {
+  currentStation = st;
+  document.getElementById("emptyMsg").style.display    = "none";
+  document.getElementById("plotContent").style.display = "block";
+  document.getElementById("stationName").textContent   = st.name;
+  const tag = document.getElementById("basinTag");
+  tag.textContent  = st.basin;
+  tag.className    = "basin-tag " + st.basinClass;
+  loadImages();
+}
+
+// ── Load images ───────────────────────────────────────────────────────────────
+function loadImages() {
+  if (!currentStation) return;
+  const yr  = selYear.value;
+  const mo  = selMonth.value;
+  const key = yr + "-" + mo;
+  const base = "timeseries_plots/" + key + "/";
+
+  document.getElementById("statusBar").textContent = "Forecast: " + key;
+
+  const grid = document.getElementById("plotGrid");
+  grid.innerHTML = "";
+
+  currentStation.plots.forEach(({ file, label }) => {
+    const card = document.createElement("div");
+    card.className = "img-card";
+    card.innerHTML = `<div class="card-title">${label}</div>
+                      <div class="img-wrap" id="wrap_${file.replace(".png","")}"></div>`;
+    grid.appendChild(card);
+
+    const wrap = card.querySelector(".img-wrap");
+    const img  = document.createElement("img");
+    img.alt    = file;
+    img.onerror = function() {
+      this.style.display = "none";
+      let ph = wrap.querySelector(".placeholder");
+      if (!ph) { ph = document.createElement("div"); ph.className = "placeholder"; wrap.appendChild(ph); }
+      ph.textContent = "Not available for " + key;
+    };
+    img.onload = function() {
+      this.style.display = "block";
+      const ph = wrap.querySelector(".placeholder");
+      if (ph) ph.remove();
+    };
+    wrap.appendChild(img);
+    img.src = base + file + "?t=" + Date.now();
+  });
+}
+
+selYear.addEventListener("change",  loadImages);
+selMonth.addEventListener("change", loadImages);
+
+// ── Default view: reservoir storage, so the page isn't empty on load ───────
+const defaultStation = STATIONS.find(s => s.id === "sau");
+if (defaultStation) {
+  defaultStation._marker.setStyle({ weight: 3, radius: 11 });
+  activeMarker = defaultStation._marker;
+  selectStation(defaultStation);
+}
+</script>
+</body>
+</html>
