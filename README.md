@@ -7,12 +7,6 @@ temperature. Built as a portfolio-style companion to the operational
 [`hydro_tool`](https://github.com/NEREIDACA/hydro_tool) viewer, presenting
 the same underlying forecasts in a different chart style in English.
 
-> This folder (`tercile_map_viewer_portfolio.html` + `timeseries_plots/`) is
-> intended to be copied out into its own standalone repository — the same
-> way `hydro_tool` and `salintrusion_tool` were split out of this pipeline —
-> once it has been reviewed. Rename `tercile_map_viewer_portfolio.html` to
-> `index.html` at that point.
-
 ## What it shows
 
 A split-screen Leaflet map: click a station, pick a forecast month from the
