@@ -135,7 +135,7 @@ shape but does not yet beat climatology (CRPSS below zero).
 
 ## About NEREIDA
 
-Built by Daniel Mercado-Bettín and Rafael Marcé at the Centre d'Estudis
+Built by Daniel Mercado-Bettín, Rafael Marcé and Jordi Pagès at the Centre d'Estudis
 Avançats de Blanes (CEAB–CSIC). Applied here to Sau and Susqueda, the tandem
 reservoirs on the River Ter that supply drinking water to the Barcelona
 metropolitan area — a system pushed to record lows during the 2021–2024
